@@ -104,9 +104,17 @@
     const client = createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
       auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true }
     });
-    const emptyPayload = () => ({ notes: [], spreadsheets: [], agentConversation: [] });
+    const emptyPayload = () => ({
+      notes: [],
+      spreadsheets: [],
+      agentConversation: [],
+      deletedNoteIDs: [],
+      deletedSpreadsheetIDs: [],
+      deletedAgentMessageIDs: []
+    });
     let payload = emptyPayload();
     let saveTimer;
+    let hasUnsavedChanges = false;
 
     const byId = id => document.getElementById(id);
     const setStatus = (id, message, error = false) => {
@@ -117,6 +125,64 @@
     const escapeHTML = value => String(value ?? "").replace(/[&<>"']/g, char => ({
       "&": "&amp;", "<": "&lt;", ">": "&gt;", "\"": "&quot;", "'": "&#39;"
     })[char]);
+
+    function mergePayloads(localPayload, remotePayload) {
+      const local = { ...emptyPayload(), ...localPayload };
+      const remote = { ...emptyPayload(), ...remotePayload };
+      const deletedNoteIDs = [...new Set([...local.deletedNoteIDs, ...remote.deletedNoteIDs])];
+      const deletedSpreadsheetIDs = [...new Set([...local.deletedSpreadsheetIDs, ...remote.deletedSpreadsheetIDs])];
+      const deletedAgentMessageIDs = [...new Set([...local.deletedAgentMessageIDs, ...remote.deletedAgentMessageIDs])];
+      const notes = local.notes.filter(note => !deletedNoteIDs.includes(note.id));
+      for (const note of remote.notes) {
+        if (deletedNoteIDs.includes(note.id)) continue;
+        const existing = notes.find(item => item.id === note.id);
+        if (!existing) {
+          notes.push(note);
+        } else if (existing.title !== note.title || existing.text !== note.text) {
+          const copyExists = notes.some(item =>
+            item.id !== note.id && item.title === `${note.title} (Cloud-Kopie)` && item.text === note.text
+          );
+          if (!copyExists) notes.push({ ...note, id: crypto.randomUUID(), title: `${note.title} (Cloud-Kopie)` });
+        }
+      }
+
+      const spreadsheets = local.spreadsheets.filter(table => !deletedSpreadsheetIDs.includes(table.id));
+      for (const table of remote.spreadsheets) {
+        if (deletedSpreadsheetIDs.includes(table.id)) continue;
+        const existing = spreadsheets.find(item => item.id === table.id);
+        if (!existing) {
+          spreadsheets.push(table);
+        } else if (JSON.stringify(existing) !== JSON.stringify(table)) {
+          const copyExists = spreadsheets.some(item =>
+            item.id !== table.id && item.title === `${table.title} (Cloud-Kopie)` &&
+            JSON.stringify(item.cells) === JSON.stringify(table.cells)
+          );
+          if (!copyExists) spreadsheets.push({ ...table, id: crypto.randomUUID(), title: `${table.title} (Cloud-Kopie)` });
+        }
+      }
+
+      const agentConversation = [...local.agentConversation];
+      for (const message of remote.agentConversation) {
+        const existing = agentConversation.find(item => item.id === message.id);
+        if (!existing) {
+          agentConversation.push(message);
+        } else if (existing.role !== message.role || existing.content !== message.content) {
+          agentConversation.push({ ...message, id: crypto.randomUUID() });
+        }
+      }
+      agentConversation.sort((left, right) =>
+        new Date(left.createdAt ?? 0).getTime() - new Date(right.createdAt ?? 0).getTime()
+      );
+
+      return {
+        notes: notes.filter(note => !deletedNoteIDs.includes(note.id)),
+        spreadsheets: spreadsheets.filter(table => !deletedSpreadsheetIDs.includes(table.id)),
+        agentConversation: agentConversation.filter(message => !deletedAgentMessageIDs.includes(message.id)),
+        deletedNoteIDs,
+        deletedSpreadsheetIDs,
+        deletedAgentMessageIDs
+      };
+    }
 
     async function loadPayload(user) {
       setStatus("sync-status", "Lade HomeHub-Daten …");
@@ -130,6 +196,13 @@
       payload.notes ??= [];
       payload.spreadsheets ??= [];
       payload.agentConversation ??= [];
+      payload.deletedNoteIDs ??= [];
+      payload.deletedSpreadsheetIDs ??= [];
+      payload.deletedAgentMessageIDs ??= [];
+      payload.notes = payload.notes.filter(note => !payload.deletedNoteIDs.includes(note.id));
+      payload.spreadsheets = payload.spreadsheets.filter(table => !payload.deletedSpreadsheetIDs.includes(table.id));
+      payload.agentConversation = payload.agentConversation.filter(message => !payload.deletedAgentMessageIDs.includes(message.id));
+      hasUnsavedChanges = false;
       render();
       setStatus("sync-status", "Synchronisiert");
     }
@@ -138,16 +211,25 @@
       const { data: { user }, error: userError } = await client.auth.getUser();
       if (userError) throw userError;
       if (!user) throw new Error("Bitte melde dich erneut an.");
+      const { data: remote, error: loadError } = await client
+        .from("homehub_sync")
+        .select("payload")
+        .eq("user_id", user.id)
+        .maybeSingle();
+      if (loadError) throw loadError;
+      payload = mergePayloads(payload, remote?.payload ?? emptyPayload());
       const { error } = await client.from("homehub_sync").upsert({
         user_id: user.id,
         payload,
         updated_at: new Date().toISOString()
       }, { onConflict: "user_id" });
       if (error) throw error;
+      hasUnsavedChanges = false;
       setStatus("sync-status", "Änderungen gespeichert");
     }
 
     function scheduleSave() {
+      hasUnsavedChanges = true;
       setStatus("sync-status", "Speichere …");
       clearTimeout(saveTimer);
       saveTimer = setTimeout(() => savePayload().catch(error => {
@@ -178,6 +260,7 @@
         scheduleSave();
       }));
       list.querySelectorAll("[data-delete-note]").forEach(button => button.addEventListener("click", () => {
+        payload.deletedNoteIDs.push(button.dataset.deleteNote);
         payload.notes = payload.notes.filter(item => item.id !== button.dataset.deleteNote);
         renderNotes();
         scheduleSave();
@@ -217,6 +300,7 @@
         scheduleSave();
       }));
       list.querySelectorAll("[data-delete-table]").forEach(button => button.addEventListener("click", () => {
+        payload.deletedSpreadsheetIDs.push(button.dataset.deleteTable);
         payload.spreadsheets = payload.spreadsheets.filter(item => item.id !== button.dataset.deleteTable);
         renderTables();
         scheduleSave();
@@ -286,7 +370,11 @@
 
     byId("sync").addEventListener("click", async () => {
       try {
-        await savePayload();
+        if (saveTimer) {
+          clearTimeout(saveTimer);
+          saveTimer = undefined;
+        }
+        if (hasUnsavedChanges) await savePayload();
         const { data: { user } } = await client.auth.getUser();
         if (user) await loadPayload(user);
       } catch (error) {
@@ -320,6 +408,16 @@
     client.auth.onAuthStateChange((_event, nextSession) => {
       void showSession(nextSession);
     });
+    setInterval(async () => {
+      if (document.visibilityState !== "visible" || hasUnsavedChanges) return;
+      const { data: { user }, error } = await client.auth.getUser();
+      if (error || !user) return;
+      try {
+        await loadPayload(user);
+      } catch (syncError) {
+        setStatus("sync-status", syncError.message, true);
+      }
+    }, 15000);
   </script>
 </body>
 </html>

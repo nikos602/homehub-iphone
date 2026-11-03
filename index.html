@@ -356,7 +356,7 @@
       });
       if (error) return setStatus("auth-status", error.message, true);
       if (!data.session) {
-        return setStatus("auth-status", "Prüfe dein E-Mail-Postfach und bestätige dein Konto, bevor du dich anmeldest.");
+        return setStatus("auth-status", "Konto erstellt. Melde dich jetzt mit deiner E-Mail-Adresse und deinem Passwort an.");
       }
       await showSession(data.session);
     });

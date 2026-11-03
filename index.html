@@ -410,6 +410,7 @@
     });
     setInterval(async () => {
       if (document.visibilityState !== "visible" || hasUnsavedChanges) return;
+      if (document.activeElement?.matches("input, textarea")) return;
       const { data: { user }, error } = await client.auth.getUser();
       if (error || !user) return;
       try {

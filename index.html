@@ -1,1012 +1,590 @@
 <!doctype html>
 <html lang="de">
-<head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-    <meta name="theme-color" content="#111827">
-    <title>HomeHub</title>
-  <style>
-      :root {
-              color-scheme: light;
-              font: 16px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-              background: #f3f5f8;
-              color: #172033;
-              --accent: #2864dc;
-              --border: #dce2eb;
-              --muted: #647084;
-      }
-      * { box-sizing: border-box; }
-      body { margin: 0; min-height: 100vh; padding: env(safe-area-inset-top) 0 env(safe-area-inset-bottom); }
-      button, input, textarea { font: inherit; }
-      button { min-height: 42px; border: 0; border-radius: 10px; padding: 9px 14px; background: var(--accent); color: white; font-weight: 600; }
-      button.secondary { background: #e8edf5; color: #263248; }
-      button.danger { background: #fff0ef; color: #a6332a; }
-      input, textarea { width: 100%; border: 1px solid var(--border); border-radius: 9px; padding: 11px 12px; background: white; color: inherit; }
-      textarea { min-height: 110px; resize: vertical; }
-      header { position: sticky; top: 0; z-index: 2; display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 14px 18px; background: #111827; color: white; }
-      header strong { font-size: 19px; }
-      header span { display: block; margin-top: 2px; color: #bdc7d8; font-size: 12px; }
-      header button { background: #28364d; color: white; }
-      main { width: min(760px, 100%); margin: 0 auto; padding: 18px; }
-      .card { margin: 0 0 15px; padding: 16px; border: 1px solid var(--border); border-radius: 14px; background: white; box-shadow: 0 2px 8px #15233a0a; }
-      .stack { display: grid; gap: 11px; }
-      .row { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
-      .row.wrap { flex-wrap: wrap; }
-      .muted, .status { color: var(--muted); font-size: 13px; }
-      .error { color: #b42318; }
-      h1 { margin: 0 0 14px; font-size: 23px; }
-      h2 { margin: 0; font-size: 18px; }
-      h3 { margin: 0; font-size: 16px; }
-      .tabs { display: grid; grid-template-columns: repeat(auto-fit, minmax(80px, 1fr)); gap: 8px; margin-bottom: 15px; }
-      .tabs button { background: #e8edf5; color: #263248; }
-      .tabs button[aria-selected="true"] { background: var(--accent); color: white; }
-      .item { padding: 13px 0; border-top: 1px solid var(--border); }
-      .item:first-child { border-top: 0; }
-      .cells { display: grid; gap: 7px; overflow-x: auto; }
-      .cellrow { display: flex; gap: 7px; min-width: max-content; }
-      .cellrow input { width: 145px; }
-      .photo-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 10px; }
-      .photo-card { min-width: 0; padding: 8px; border: 1px solid var(--border); border-radius: 10px; }
-      .photo-card img { display: block; width: 100%; aspect-ratio: 1; object-fit: cover; border-radius: 7px; }
-      .photo-card p { margin: 7px 0; overflow-wrap: anywhere; font-size: 13px; }
-      .shortcut-link { display: block; padding: 12px 0; border-top: 1px solid var(--border); color: var(--accent); overflow-wrap: anywhere; }
-      .shortcut-link:first-child { border-top: 0; }
-      .file-input { display: none; }
-      .hidden { display: none !important; }
-      @media (min-width: 600px) {
-              main { padding-top: 26px; }
-              .card { padding: 20px; }
-      }
-    </style>
-</head>
-<body>
-    <header>
-          <div><strong>HomeHub</strong><span>Private Notizen-Synchronisierung</span></div>
-        <button id="signout" class="hidden">Abmelden</button>button>
-    </header>
-  <main>
-        <section id="auth" class="card stack">
-                <h1>Bei HomeHub anmelden</h1>
-              <p class="muted">Melde dich mit deinem HomeHub-Konto an. Deine Daten werden nur in deinem Konto gespeichert.</p>p>
-              <label class="stack">E-Mail<input id="email" type="email" autocomplete="username" required></label>label>
-              <label class="stack">Passwort<input id="password" type="password" autocomplete="current-password" required></label>label>
-              <div class="row wrap">
-                      <button id="login">Anmelden</button>button>
-                      <button id="signup" class="secondary">Konto erstellen</button>button>
-              </div>
-              <p id="auth-status" class="status" role="status"></p>p>
-        </section>section>
-  
-      <section id="app" class="hidden">
-            <div class="row wrap" style="margin-bottom:14px">
-                    <h1>Dein HomeHub</h1>
-                    <button id="sync" class="secondary">Jetzt synchronisieren</button>button>
-            </div>
-            <p id="sync-status" class="status" role="status"></p>p>
-            <nav class="tabs" aria-label="HomeHub-Bereiche">
-                    <button data-tab="notes" aria-selected="true">Notizen</button>button>
-                    <button data-tab="tables" aria-selected="false">Tabellen</button>button>
-                    <button data-tab="chat" aria-selected="false">Chatverlauf</button>button>
-                    <button data-tab="apps" aria-selected="false">Apps</button>button>
-                    <button data-tab="photos" aria-selected="false">Fotos</button>button>
-            </nav>nav>
-            <section id="notes-panel" class="card stack">
-                    <div class="row"><h2>Notizen</h2><button id="add-note">Neue Notiz</button>button></div>
-                    <div id="notes-list"></div>
-            </section>section>
-            <section id="tables-panel" class="card stack hidden">
-                    <div class="row"><h2>Tabellen</h2><button id="add-table">Neue Tabelle</button>button></div>
-                    <div id="tables-list"></div>
-            </section>section>
-            <section id="chat-panel" class="card stack hidden">
-                    <h2>Chatverlauf</h2>
-                    <p class="muted">Der Verlauf wird angezeigt. Antworten über das Motorola-Modell sind nur möglich, wenn dein Mac und Handy zu Hause erreichbar sind.</p>p>
-                    <div id="chat-list"></div>
-            </section>section>
-            <section id="apps-panel" class="card stack hidden">
-                    <h2>Meine Apps</h2>
-                    <p class="muted">Füge eigene Web-Apps hinzu. Die Verknüpfungen erscheinen auch in der Mac-App.</p>p>
-                    <label class="stack">Name<input id="app-name" autocomplete="off" placeholder="z. B. Kalender"></label>label>
-                    <label class="stack">Webadresse<input id="app-url" type="url" inputmode="url" placeholder="https://example.com"></label>label>
-                    <button id="add-app">App hinzufügen</button>button>
-                    <p id="apps-status" class="status" role="status"></p>p>
-                    <div id="apps-list"></div>
-            </section>section>
-            <section id="photos-panel" class="card stack hidden">
-                    <div class="row"><h2>Fotos</h2><button id="choose-photos">Bilder hinzufügen</button>button></div>
-                    <input id="photo-files" class="file-input" type="file" accept="image/*" multiple>
-                    <p class="muted">Bilder werden vor dem Speichern verkleinert und mit deinem Konto synchronisiert.</p>p>
-                    <div id="photos-list" class="photo-grid"></div>
-            </section>section>
-      </section>section>
-  </main>
-  <script type="module">
-      import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-  
-      const SUPABASE_URL = "https://sjwwfwpbjqnmtihsafrj.supabase.co";
-      const SUPABASE_PUBLISHABLE_KEY = "sb_publishable_TsQELqZ8e9tAmu3hhzClkg_IZpbos7e";
-      const client = createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
-              auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true }
-      });
-      const emptyPayload = () => ({
-              notes: [],
-              spreadsheets: [],
-              agentConversation: [],
-              appShortcuts: [],
-              photos: [],
-              deletedNoteIDs: [],
-              deletedSpreadsheetIDs: [],
-              deletedAgentMessageIDs: [],
-              deletedAppShortcutIDs: [],
-              deletedPhotoIDs: []
-      });
-      let payload = emptyPayload();
-      let saveTimer;
-      let hasUnsavedChanges = false;
-  
-      const byId = id => document.getElementById(id);
-      const setStatus = (id, message, error = false) => {
-              const element = byId(id);
-              element.textContent = message;
-              element.classList.toggle("error", error);
-      };
-      const escapeHTML = value => String(value ?? "").replace(/[&<>"']/g, char => ({
-              "&": "&amp;", "<": "&lt;", ">": "&gt;", "\"": "&quot;", "'": "&#39;"
-      })[char]);
-  
-      function mergePayloads(localPayload, remotePayload) {
-              const local = { ...emptyPayload(), ...localPayload };
-              const remote = { ...emptyPayload(), ...remotePayload };
-              const deletedNoteIDs = [...new Set([...local.deletedNoteIDs, ...remote.deletedNoteIDs])];
-              const deletedSpreadsheetIDs = [...new Set([...local.deletedSpreadsheetIDs, ...remote.deletedSpreadsheetIDs])];
-              const deletedAgentMessageIDs = [...new Set([...local.deletedAgentMessageIDs, ...remote.deletedAgentMessageIDs])];
-              const deletedAppShortcutIDs = [...new Set([...local.deletedAppShortcutIDs, ...remote.deletedAppShortcutIDs])];
-              const deletedPhotoIDs = [...new Set([...local.deletedPhotoIDs, ...remote.deletedPhotoIDs])];
-              const notes = local.notes.filter(note => !deletedNoteIDs.includes(note.id));
-              for (const note of remote.notes) {
-                        if (deletedNoteIDs.includes(note.id)) continue;
-                                  const existing = notes.find(item => item.id === note.id);
-                        if (!existing) {
-                                    notes.push(note);
-                        } else if (existing.title !== note.title || existing.text !== note.text) {
-                                    const copyExists = notes.some(item =>
-                                                  item.id !== note.id && item.title === `${note.title} (Cloud-Kopie)` && item.text === note.text
-                                                );
-                                    if (!copyExists) notes.push({ ...note, id: crypto.randomUUID(), title: `${note.title} (Cloud-Kopie)` });
-                        }
+    <head>
+          <meta charset="utf-8">
+          <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+          <meta name="theme-color" content="#111827">
+          <title>HomeHub</title>
+      <style>
+              :root {
+                        color-scheme: light;
+                        font: 16px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+                        background: #f3f5f8;
+                        color: #172033;
+                        --accent: #2864dc;
+                        --border: #dce2eb;
+                        --muted: #647084;
               }
-        
-              const spreadsheets = local.spreadsheets.filter(table => !deletedSpreadsheetIDs.includes(table.id));
-              for (const table of remote.spreadsheets) {
-                        if (deletedSpreadsheetIDs.includes(table.id)) continue;
-                                  const existing = spreadsheets.find(item => item.id === table.id);
-                        if (!existing) {
-                                    spreadsheets.push(table);
-                        } else if (JSON.stringify(existing) !== JSON.stringify(table)) {
-                                    const copyExists = spreadsheets.some(item =>
-                                                  item.id !== table.id && item.title === `${table.title} (Cloud-Kopie)` &&
-                                                  JSON.stringify(item.cells) === JSON.stringify(table.cells)
-                                                );
-                                    if (!copyExists) spreadsheets.push({ ...table, id: crypto.randomUUID(), title: `${table.title} (Cloud-Kopie)` });
-                        }
+              * { box-sizing: border-box; }
+              body { margin: 0; min-height: 100vh; padding: env(safe-area-inset-top) 0 env(safe-area-inset-bottom); }
+              button, input, textarea { font: inherit; }
+              button { min-height: 42px; border: 0; border-radius: 10px; padding: 9px 14px; background: var(--accent); color: white; font-weight: 600; }
+              button.secondary { background: #e8edf5; color: #263248; }
+              button.danger { background: #fff0ef; color: #a6332a; }
+              input, textarea { width: 100%; border: 1px solid var(--border); border-radius: 9px; padding: 11px 12px; background: white; color: inherit; }
+              textarea { min-height: 110px; resize: vertical; }
+              header { position: sticky; top: 0; z-index: 2; display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 14px 18px; background: #111827; color: white; }
+              header strong { font-size: 19px; }
+              header span { display: block; margin-top: 2px; color: #bdc7d8; font-size: 12px; }
+              header button { background: #28364d; color: white; }
+              main { width: min(760px, 100%); margin: 0 auto; padding: 18px; }
+              .card { margin: 0 0 15px; padding: 16px; border: 1px solid var(--border); border-radius: 14px; background: white; box-shadow: 0 2px 8px #15233a0a; }
+              .stack { display: grid; gap: 11px; }
+              .row { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+              .row.wrap { flex-wrap: wrap; }
+              .muted, .status { color: var(--muted); font-size: 13px; }
+              .error { color: #b42318; }
+              h1 { margin: 0 0 14px; font-size: 23px; }
+              h2 { margin: 0; font-size: 18px; }
+              h3 { margin: 0; font-size: 16px; }
+              .tabs { display: grid; grid-template-columns: repeat(auto-fit, minmax(80px, 1fr)); gap: 8px; margin-bottom: 15px; }
+              .tabs button { background: #e8edf5; color: #263248; }
+              .tabs button[aria-selected="true"] { background: var(--accent); color: white; }
+              .item { padding: 13px 0; border-top: 1px solid var(--border); }
+              .item:first-child { border-top: 0; }
+              .cells { display: grid; gap: 7px; overflow-x: auto; }
+              .cellrow { display: flex; gap: 7px; min-width: max-content; }
+              .cellrow input { width: 145px; }
+              .photo-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 10px; }
+              .photo-card { min-width: 0; padding: 8px; border: 1px solid var(--border); border-radius: 10px; }
+              .photo-card img { display: block; width: 100%; aspect-ratio: 1; object-fit: cover; border-radius: 7px; }
+              .photo-card p { margin: 7px 0; overflow-wrap: anywhere; font-size: 13px; }
+              .shortcut-link { display: block; padding: 12px 0; border-top: 1px solid var(--border); color: var(--accent); overflow-wrap: anywhere; }
+              .shortcut-link:first-child { border-top: 0; }
+              .file-input { display: none; }
+              .hidden { display: none !important; }
+              @media (min-width: 600px) {
+                        main { padding-top: 26px; }
+                        .card { padding: 20px; }
               }
-        
-              const agentConversation = [...local.agentConversation];
-              for (const message of remote.agentConversation) {
-                        const existing = agentConversation.find(item => item.id === message.id);
-                        if (!existing) {
-                                    agentConversation.push(message);
-                        } else if (existing.role !== message.role || existing.content !== message.content) {
-                                    agentConversation.push({ ...message, id: crypto.randomUUID() });
-                        }
-              }
-              agentConversation.sort((left, right) =>
-                        new Date(left.createdAt ?? 0).getTime() - new Date(right.createdAt ?? 0).getTime()
-                      );
-        
-              const appShortcuts = local.appShortcuts.filter(item => !deletedAppShortcutIDs.includes(item.id));
-              for (const shortcut of remote.appShortcuts) {
-                        if (!deletedAppShortcutIDs.includes(shortcut.id) && !appShortcuts.some(item => item.id === shortcut.id)) {
-                                    appShortcuts.push(shortcut);
-                        }
-              }
-        
-              const photos = local.photos.filter(item => !deletedPhotoIDs.includes(item.id));
-              for (const photo of remote.photos) {
-                        if (!deletedPhotoIDs.includes(photo.id) && !photos.some(item => item.id === photo.id)) photos.push(photo);
-              }
-        
-              return {
-                        notes: notes.filter(note => !deletedNoteIDs.includes(note.id)),
-                        spreadsheets: spreadsheets.filter(table => !deletedSpreadsheetIDs.includes(table.id)),
-                        agentConversation: agentConversation.filter(message => !deletedAgentMessageIDs.includes(message.id)),
-                        appShortcuts,
-                        photos,
-                        deletedNoteIDs,
-                        deletedSpreadsheetIDs,
-                        deletedAgentMessageIDs,
-                        deletedAppShortcutIDs,
-                        deletedPhotoIDs
-              };
-      }
-  
-      async function loadPayload(user) {
-              setStatus("sync-status", "Lade HomeHub-Daten …");
-              const { data, error } = await client
-                        .from("homehub_sync")
-                        .select("payload")
-                        .eq("user_id", user.id)
-                        .maybeSingle();
-              if (error) throw error;
-                      payload = data?.payload ?? emptyPayload();
-              payload.notes ??= [];
-              payload.spreadsheets ??= [];
-              payload.agentConversation ??= [];
-              payload.appShortcuts ??= [];
-              payload.photos ??= [];
-              payload.deletedNoteIDs ??= [];
-              payload.deletedSpreadsheetIDs ??= [];
-              payload.deletedAgentMessageIDs ??= [];
-              payload.deletedAppShortcutIDs ??= [];
-              payload.deletedPhotoIDs ??= [];
-              payload.notes = payload.notes.filter(note => !payload.deletedNoteIDs.includes(note.id));
-              payload.spreadsheets = payload.spreadsheets.filter(table => !payload.deletedSpreadsheetIDs.includes(table.id));
-              payload.agentConversation = payload.agentConversation.filter(message => !payload.deletedAgentMessageIDs.includes(message.id));
-              payload.appShortcuts = payload.appShortcuts.filter(item => !payload.deletedAppShortcutIDs.includes(item.id));
-              payload.photos = payload.photos.filter(item => !payload.deletedPhotoIDs.includes(item.id));
-              hasUnsavedChanges = false;
-              render();
-              setStatus("sync-status", "Synchronisiert");
-      }
-  
-      async function savePayload() {
-              const { data: { user }, error: userError } = await client.auth.getUser();
-              if (userError) throw userError;
-                      if (!user) throw new Error("Bitte melde dich erneut an.");
-                              const { data: remote, error: loadError } = await client
-                                        .from("homehub_sync")
-                                        .select("payload")
-                                        .eq("user_id", user.id)
-                                        .maybeSingle();
-              if (loadError) throw loadError;
-                      payload = mergePayloads(payload, remote?.payload ?? emptyPayload());
-              const { error } = await client.from("homehub_sync").upsert({
-                        user_id: user.id,
-                        payload,
-                        updated_at: new Date().toISOString()
-              }, { onConflict: "user_id" });
-              if (error) throw error;
-                      hasUnsavedChanges = false;
-              setStatus("sync-status", "Änderungen gespeichert");
-      }
-  
-      function scheduleSave() {
-              hasUnsavedChanges = true;
-              setStatus("sync-status", "Speichere …");
-              clearTimeout(saveTimer);
-              saveTimer = setTimeout(() => savePayload().catch(error => {
-                        setStatus("sync-status", error.message, true);
-              }), 500);
-      }
-  
-      function renderNotes() {
-              const list = byId("notes-list");
-              if (!payload.notes.length) {
-                        list.innerHTML = '<p class="muted">Noch keine synchronisierten Notizen.</p>';
-                        return;
-              }
-                      list.innerHTML = payload.notes.map(note => `
-                              <article class="item stack">
-                                        <input aria-label="Notiztitel" data-note-title="${escapeHTML(note.id)}" value="${escapeHTML(note.title)}">
-                                                  <textarea aria-label="Notiztext" data-note-text="${escapeHTML(note.id)}">${escapeHTML(note.text)}</textarea>
-                                                            <div class="row"><span class="muted">Wird automatisch gespeichert</span><button class="danger" data-delete-note="${escapeHTML(note.id)}">Löschen</button></div>
-                                                                    </article>`).join("");
-              list.querySelectorAll("[data-note-title]").forEach(input => input.addEventListener("input", () => {
-                        const note = payload.notes.find(item => item.id === input.dataset.noteTitle);
-                        if (note) note.title = input.value;
-                        scheduleSave();
-              }));
-              list.querySelectorAll("[data-note-text]").forEach(input => input.addEventListener("input", () => {
-                        const note = payload.notes.find(item => item.id === input.dataset.noteText);
-                        if (note) note.text = input.value;
-                        scheduleSave();
-              }));
-              list.querySelectorAll("[data-delete-note]").forEach(button => button.addEventListener("click", () => {
-                        payload.deletedNoteIDs.push(button.dataset.deleteNote);
-                        payload.notes = payload.notes.filter(item => item.id !== button.dataset.deleteNote);
-                        renderNotes();
-                        scheduleSave();
-              }));
-      }
-  
-      function renderTables() {
-              const list = byId("tables-list");
-              if (!payload.spreadsheets.length) {
-                        list.innerHTML = '<p class="muted">Noch keine synchronisierten Tabellen.</p>';
-                        return;
-              }
-                      list.innerHTML = payload.spreadsheets.map(table => {
-                                const cells = table.cells ?? [];
-                                return `<article class="item stack">
-                                          <input aria-label="Tabellentitel" data-table-title="${escapeHTML(table.id)}" value="${escapeHTML(table.title)}">
-                                                    <div class="cells">${cells.map((row, rowIndex) => `<div class="cellrow">${row.map((cell, columnIndex) =>
-                                                                  `<input aria-label="Zeile ${rowIndex + 1}, Spalte ${columnIndex + 1}" data-cell-table="${escapeHTML(table.id)}" data-row="${rowIndex}" data-column="${columnIndex}" value="${escapeHTML(cell)}">`
-                                                                ).join("")}</div>`).join("")}</div>
-                                                                          <div class="row"><button class="secondary" data-add-row="${escapeHTML(table.id)}">Zeile hinzufügen</button><button class="danger" data-delete-table="${escapeHTML(table.id)}">Löschen</button></div>
-                                                                                  </article>`;
-                      }).join("");
-              list.querySelectorAll("[data-table-title]").forEach(input => input.addEventListener("input", () => {
-                        const table = payload.spreadsheets.find(item => item.id === input.dataset.tableTitle);
-                        if (table) table.title = input.value;
-                        scheduleSave();
-              }));
-              list.querySelectorAll("[data-cell-table]").forEach(input => input.addEventListener("input", () => {
-                        const table = payload.spreadsheets.find(item => item.id === input.dataset.cellTable);
-                        if (table) table.cells[Number(input.dataset.row)][Number(input.dataset.column)] = input.value;
-                        scheduleSave();
-              }));
-              list.querySelectorAll("[data-add-row]").forEach(button => button.addEventListener("click", () => {
-                        const table = payload.spreadsheets.find(item => item.id === button.dataset.addRow);
-                        if (table) table.cells.push(Array.from({ length: table.cells[0]?.length ?? 3 }, () => ""));
-                        renderTables();
-                        scheduleSave();
-              }));
-              list.querySelectorAll("[data-delete-table]").forEach(button => button.addEventListener("click", () => {
-                        payload.deletedSpreadsheetIDs.push(button.dataset.deleteTable);
-                        payload.spreadsheets = payload.spreadsheets.filter(item => item.id !== button.dataset.deleteTable);
-                        renderTables();
-                        scheduleSave();
-              }));
-      }
-  
-      function renderChat() {
-              const list = byId("chat-list");
-              const messages = payload.agentConversation.slice(-100);
-              list.innerHTML = messages.length ? messages.map(message => `
-                      <article class="item">
-                                <strong>${message.role === "user" ? "Du" : "HomeHub-Agent"}</strong>
-                                          <p>${escapeHTML(message.content).replace(/\n/g, "<br>")}</p>
-                                                  </article>`).join("") : '<p class="muted">Noch kein synchronisierter Chatverlauf.</p>';
-      }
-  
-      function safeWebURL(value) {
-              try {
-                        const url = new URL(value);
-                        return ["http:", "https:"].includes(url.protocol) ? url.href : null;
-              } catch {
-                        return null;
-              }
-      }
-  
-      function renderApps() {
-              const list = byId("apps-list");
-              list.innerHTML = payload.appShortcuts.length ? payload.appShortcuts.map(shortcut => {
-                        const url = safeWebURL(shortcut.url);
-                        return `<article class="shortcut-link row">
-                                  <div>${url
-                                                     ? `<a href="${escapeHTML(url)}" target="_blank" rel="noopener noreferrer">${escapeHTML(shortcut.name)}</a>`
-                                                     : `<span>${escapeHTML(shortcut.name)} · ungültige Webadresse</span>`}
-                                                                 <div class="muted">${escapeHTML(shortcut.url)}</div>
-                                                                           </div>
-                                                                                     <button class="danger" data-delete-app="${escapeHTML(shortcut.id)}">Entfernen</button>
-                                                                                             </article>`;
-              }).join("") : '<p class="muted">Noch keine eigenen Apps hinzugefügt.</p>';
-              list.querySelectorAll("[data-delete-app]").forEach(button => button.addEventListener("click", () => {
-                        const id = button.dataset.deleteApp;
-                        if (!window.confirm("Diese App-Verknüpfung wirklich entfernen?")) return;
-                        if (!payload.deletedAppShortcutIDs.includes(id)) payload.deletedAppShortcutIDs.push(id);
-                        payload.appShortcuts = payload.appShortcuts.filter(item => item.id !== id);
-                        renderApps();
-                        scheduleSave();
-              }));
-      }
-  
-      function renderPhotos() {
-              const list = byId("photos-list");
-              list.innerHTML = payload.photos.length ? payload.photos.map(photo => `
-                      <article class="photo-card">
-                                <img src="data:image/jpeg;base64,${photo.imageData}" alt="${escapeHTML(photo.name)}">
-                                          <p>${escapeHTML(photo.name)}</p>
-                                                    <button class="danger" data-delete-photo="${escapeHTML(photo.id)}">Entfernen</button>
-                                                            </article>`).join("") : '<p class="muted">Noch keine Bilder hinzugefügt.</p>';
-              list.querySelectorAll("[data-delete-photo]").forEach(button => button.addEventListener("click", () => {
-                        const id = button.dataset.deletePhoto;
-                        if (!window.confirm("Dieses Bild wirklich dauerhaft entfernen?")) return;
-                        if (!payload.deletedPhotoIDs.includes(id)) payload.deletedPhotoIDs.push(id);
-                        payload.photos = payload.photos.filter(item => item.id !== id);
-                        renderPhotos();
-                        scheduleSave();
-              }));
-      }
-  
-      function render() {
-              renderNotes();
-              renderTables();
-              renderChat();
-              renderApps();
-              renderPhotos();
-      }
-  
-      async function showSession(session) {
-              const signedIn = Boolean(session);
-              byId("auth").classList.toggle("hidden", signedIn);
-              byId("app").classList.toggle("hidden", !signedIn);
-              byId("signout").classList.toggle("hidden", !signedIn);
-              if (session) {
-                        try {
-                                    await loadPayload(session.user);
-                        } catch (error) {
-                                    setStatus("sync-status", error.message, true);
-                        }
-              }
-      }
-  
-      byId("login").addEventListener("click", async () => {
-              setStatus("auth-status", "Melde an …");
-              const { data, error } = await client.auth.signInWithPassword({
-                        email: byId("email").value.trim(),
-                        password: byId("password").value
-              });
-              if (error) return setStatus("auth-status", error.message, true);
-              setStatus("auth-status", "");
-              await showSession(data.session);
-      });
-  
-      byId("signup").addEventListener("click", async () => {
-              setStatus("auth-status", "Erstelle Konto …");
-              const { data, error } = await client.auth.signUp({
-                        email: byId("email").value.trim(),
-                        password: byId("password").value
-              });
-              if (error) return setStatus("auth-status", error.message, true);
-              if (!data.session) {
-                        return setStatus("auth-status", "Konto erstellt. Melde dich jetzt mit deiner E-Mail-Adresse und deinem Passwort an.");
-              }
-              await showSession(data.session);
-      });
-  
-      byId("signout").addEventListener("click", async () => {
-              const { error } = await client.auth.signOut();
-              if (error) return setStatus("sync-status", error.message, true);
-              payload = emptyPayload();
-              await showSession(null);
-      });
-  
-      byId("sync").addEventListener("click", async () => {
-              try {
-                        if (saveTimer) {
-                                    clearTimeout(saveTimer);
-                                    saveTimer = undefined;
-                        }
-                                  if (hasUnsavedChanges) await savePayload();
-                                            const { data: { user } } = await client.auth.getUser();
-                        if (user) await loadPayload(user);
-              } catch (error) {
-                        setStatus("sync-status", error.message, true);
-              }
-      });
-  
-      byId("add-note").addEventListener("click", () => {
-              payload.notes.unshift({ id: crypto.randomUUID(), title: "Neue Notiz", text: "" });
-              renderNotes();
-              scheduleSave();
-      });
-  
-      byId("add-table").addEventListener("click", () => {
-              payload.spreadsheets.unshift({
-                        id: crypto.randomUUID(),
-                        title: "Neue Tabelle",
-                        cells: Array.from({ length: 5 }, () => Array.from({ length: 3 }, () => ""))
-              });
-              renderTables();
-              scheduleSave();
-      });
-  
-      byId("add-app").addEventListener("click", () => {
-              const name = byId("app-name").value.trim();
-              const address = byId("app-url").value.trim();
-              const url = safeWebURL(address);
-              if (!name || !url) {
-                        return setStatus("apps-status", "Bitte gib einen Namen und eine gültige http- oder https-Webadresse ein.", true);
-              }
-              payload.appShortcuts.unshift({ id: crypto.randomUUID(), name, url, icon: "globe" });
-              byId("app-name").value = "";
-              byId("app-url").value = "";
-              setStatus("apps-status", "App hinzugefügt.");
-              renderApps();
-              scheduleSave();
-      });
-  
-      byId("choose-photos").addEventListener("click", () => byId("photo-files").click());
-      byId("photo-files").addEventListener("change", async event => {
-              const files = [...(event.target.files ?? [])];
-              let addedCount = 0;
-              let firstError;
-              for (const file of files) {
-                        try {
-                                    if (!file.type.startsWith("image/")) throw new Error("Die Datei ist kein unterstütztes Bild.");
-                                                const bitmap = await createImageBitmap(file);
-                                    const scale = Math.min(1, 1400 / Math.max(bitmap.width, bitmap.height));
-                                    const canvas = document.createElement("canvas");
-                                    canvas.width = Math.max(1, Math.round(bitmap.width * scale));
-                                    canvas.height = Math.max(1, Math.round(bitmap.height * scale));
-                                    canvas.getContext("2d").drawImage(bitmap, 0, 0, canvas.width, canvas.height);
-                                    bitmap.close();
-                                    const imageData = await new Promise((resolve, reject) => {
-                                                  canvas.toBlob(blob => {
-                                                                  if (!blob) return reject(new Error("Das Bild konnte nicht komprimiert werden."));
-                                                                  const reader = new FileReader();
-                                                                  reader.onload = () => resolve(String(reader.result).split(",")[1]);
-                                                                  reader.onerror = () => reject(new Error("Das Bild konnte nicht gelesen werden."));
-                                                                  reader.readAsDataURL(blob);
-                                                  }, "image/jpeg", 0.72);
-                                    });
-                                    payload.photos.unshift({
-                                                  id: crypto.randomUUID(),
-                                                  name: file.name.replace(/\.[^.]+$/, "") || "Foto",
-                                                  imageData
-                                    });
-                                    addedCount++;
-                        } catch (error) {
-                                    firstError ??= error;
-                        }
-              }
-              event.target.value = "";
-              renderPhotos();
-              if (addedCount) scheduleSave();
-              if (firstError) {
-                        setStatus("sync-status", `${addedCount ? `${addedCount} Bild(er) hinzugefügt. ` : ""}${firstError.message}`, true);
-              }
-      });
-  
-      document.querySelectorAll("[data-tab]").forEach(button => button.addEventListener("click", () => {
-              document.querySelectorAll("[data-tab]").forEach(tab => tab.setAttribute("aria-selected", String(tab === button)));
-              for (const tab of ["notes", "tables", "chat", "apps", "photos"]) byId(`${tab}-panel`).classList.toggle("hidden", tab !== button.dataset.tab);
-      }));
-  
-      const { data: { session } } = await client.auth.getSession();
-      await showSession(session);
-      client.auth.onAuthStateChange((_event, nextSession) => {
-              void showSession(nextSession);
-      });
-      setInterval(async () => {
-              if (document.visibilityState !== "visible" || hasUnsavedChanges) return;
-              if (document.activeElement?.matches("input, textarea")) return;
-              const { data: { user }, error } = await client.auth.getUser();
-              if (error || !user) return;
-              try {
-                        await loadPayload(user);
-              } catch (syncError) {
-                        setStatus("sync-status", syncError.message, true);
-              }
-      }, 15000);
-  </script>
-</body>
+            </style>
+    </head>
+    <body>
+          <header>
+                  <div><strong>HomeHub</strong><span>Private Notizen-Synchronisierung</span></div>
+              <button id="signout" class="hidden">Abmelden</button>button>
+          </header>
+      <main>
+              <section id="auth" class="card stack">
+                        <h1>Bei HomeHub anmelden</h1>
+                    <p class="muted">Melde dich mit deinem HomeHub-Konto an. Deine Daten werden nur in deinem Konto gespeichert.</p>p>
+                    <label class="stack">E-Mail<input id="email" type="email" autocomplete="username" required></label>label>
+                    <label class="stack">Passwort<input id="password" type="password" autocomplete="current-password" required></label>label>
+                    <div class="row wrap">
+                            <button id="login">Anmelden</button>button>
+                            <button id="signup" class="secondary">Konto erstellen</button>button>
+                    </div>
+                    <p id="auth-status" class="status" role="status"></p>p>
+              </section>section>
+      
+          <section id="app" class="hidden">
+                <div class="row wrap" style="margin-bottom:14px">
+                        <h1>Dein HomeHub</h1>
+                        <button id="sync" class="secondary">Jetzt synchronisieren</button>button>
+                </div>
+                <p id="sync-status" class="status" role="status"></p>p>
+                <nav class="tabs" aria-label="HomeHub-Bereiche">
+                        <button data-tab="notes" aria-selected="true">Notizen</button>button>
+                        <button data-tab="tables" aria-selected="false">Tabellen</button>button>
+                        <button data-tab="chat" aria-selected="false">Chatverlauf</button>button>
+                        <button data-tab="apps" aria-selected="false">Apps</button>button>
+                        <button data-tab="photos" aria-selected="false">Fotos</button>button>
+                </nav>nav>
+                <section id="notes-panel" class="card stack">
+                        <div class="row"><h2>Notizen</h2><button id="add-note">Neue Notiz</button>button></div>
+                        <div id="notes-list"></div>
+                </section>section>
+                <section id="tables-panel" class="card stack hidden">
+                        <div class="row"><h2>Tabellen</h2><button id="add-table">Neue Tabelle</button>button></div>
+                        <div id="tables-list"></div>
+                </section>section>
+                <section id="chat-panel" class="card stack hidden">
+                        <h2>Chatverlauf</h2>
+                        <p class="muted">Der Verlauf wird angezeigt. Antworten über das Motorola-Modell sind nur möglich, wenn dein Mac und Handy zu Hause erreichbar sind.</p>p>
+                        <div id="chat-list"></div>
+                </section>section>
+                <section id="apps-panel" class="card stack hidden">
+                        <h2>Meine Apps</h2>
+                        <p class="muted">Füge eigene Web-Apps hinzu. Die Verknüpfungen erscheinen auch in der Mac-App.</p>p>
+                        <label class="stack">Name<input id="app-name" autocomplete="off" placeholder="z. B. Kalender"></label>label>
+                        <label class="stack">Webadresse<input id="app-url" type="url" inputmode="url" placeholder="https://example.com"></label>label>
+                        <button id="add-app">App hinzufügen</button>button>
+                        <p id="apps-status" class="status" role="status"></p>p>
+                        <div id="apps-list"></div>
+                </section>section>
+                <section id="photos-panel" class="card stack hidden">
+                        <div class="row"><h2>Fotos</h2><button id="choose-photos">Bilder hinzufügen</button>button></div>
+                        <input id="photo-files" class="file-input" type="file" accept="image/*" multiple>
+                        <p class="muted">Bilder werden vor dem Speichern verkleinert und mit deinem Konto synchronisiert.</p>p>
+                        <div id="photos-list" class="photo-grid"></div>
+                </section>section>
+          </section>section>
+      </main>
+      <script type="module">
+          import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+      
+          const SUPABASE_URL = "https://sjwwfwpbjqnmtihsafrj.supabase.co";
+          const SUPABASE_PUBLISHABLE_KEY = "sb_publishable_TsQELqZ8e9tAmu3hhzClkg_IZpbos7e";
+          const client = createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
+                    auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true }
+          });
+          const emptyPayload = () => ({
+                    notes: [],
+                    spreadsheets: [],
+                    agentConversation: [],
+                    appShortcuts: [],
+                    photos: [],
+                    deletedNoteIDs: [],
+                    deletedSpreadsheetIDs: [],
+                    deletedAgentMessageIDs: [],
+                    deletedAppShortcutIDs: [],
+                    deletedPhotoIDs: []
+          });
+          let payload = emptyPayload();
+          let saveTimer;
+          let hasUnsavedChanges = false;
+      
+          const byId = id => document.getElementById(id);
+          const setStatus = (id, message, error = false) => {
+                    const element = byId(id);
+                    element.textContent = message;
+                    element.classList.toggle("error", error);
+          };
+          const escapeHTML = value => String(value ?? "").replace(/[&<>"']/g, char => ({
+                    "&": "&amp;", "<": "&lt;", ">": "&gt;", "\"": "&quot;", "'": "&#39;"
+          })[char]);
+      
+          function mergePayloads(localPayload, remotePayload) {
+                    const local = { ...emptyPayload(), ...localPayload };
+                    const remote = { ...emptyPayload(), ...remotePayload };
+                    const deletedNoteIDs = [...new Set([...local.deletedNoteIDs, ...remote.deletedNoteIDs])];
+                    const deletedSpreadsheetIDs = [...new Set([...local.deletedSpreadsheetIDs, ...remote.deletedSpreadsheetIDs])];
+                    const deletedAgentMessageIDs = [...new Set([...local.deletedAgentMessageIDs, ...remote.deletedAgentMessageIDs])];
+                    const deletedAppShortcutIDs = [...new Set([...local.deletedAppShortcutIDs, ...remote.deletedAppShortcutIDs])];
+                    const deletedPhotoIDs = [...new Set([...local.deletedPhotoIDs, ...remote.deletedPhotoIDs])];
+                    const notes = local.notes.filter(note => !deletedNoteIDs.includes(note.id));
+                    for (const note of remote.notes) {
+                                if (deletedNoteIDs.includes(note.id)) continue;
+                                            const existing = notes.find(item => item.id === note.id);
+                                if (!existing) {
+                                              notes.push(note);
+                                } else if (existing.title !== note.title || existing.text !== note.text) {
+                                              const copyExists = notes.some(item =>
+                                                              item.id !== note.id && item.title === `${note.title} (Cloud-Kopie)` && item.text === note.text
+                                                            );
+                                              if (!copyExists) notes.push({ ...note, id: crypto.randomUUID(), title: `${note.title} (Cloud-Kopie)` });
+                                }
+                    }
+              
+                    const spreadsheets = local.spreadsheets.filter(table => !deletedSpreadsheetIDs.includes(table.id));
+                    for (const table of remote.spreadsheets) {
+                                if (deletedSpreadsheetIDs.includes(table.id)) continue;
+                                            const existing = spreadsheets.find(item => item.id === table.id);
+                                if (!existing) {
+                                              spreadsheets.push(table);
+                                } else if (JSON.stringify(existing) !== JSON.stringify(table)) {
+                                              const copyExists = spreadsheets.some(item =>
+                                                              item.id !== table.id && item.title === `${table.title} (Cloud-Kopie)` &&
+                                                              JSON.stringify(item.cells) === JSON.stringify(table.cells)
+                                                            );
+                                              if (!copyExists) spreadsheets.push({ ...table, id: crypto.randomUUID(), title: `${table.title} (Cloud-Kopie)` });
+                                }
+                    }
+              
+                    const agentConversation = [...local.agentConversation];
+                    for (const message of remote.agentConversation) {
+                                const existing = agentConversation.find(item => item.id === message.id);
+                                if (!existing) {
+                                              agentConversation.push(message);
+                                } else if (existing.role !== message.role || existing.content !== message.content) {
+                                              agentConversation.push({ ...message, id: crypto.randomUUID() });
+                                }
+                    }
+                    agentConversation.sort((left, right) =>
+                                new Date(left.createdAt ?? 0).getTime() - new Date(right.createdAt ?? 0).getTime()
+                              );
+              
+                    const appShortcuts = local.appShortcuts.filter(item => !deletedAppShortcutIDs.includes(item.id));
+                    for (const shortcut of remote.appShortcuts) {
+                                if (!deletedAppShortcutIDs.includes(shortcut.id) && !appShortcuts.some(item => item.id === shortcut.id)) {
+                                              appShortcuts.push(shortcut);
+                                }
+                    }
+                                                  
+                    const photos = local.photos.filter(item => !deletedPhotoIDs.includes(item.id));
+                    for (const photo of remote.photos) {
+                                if (!deletedPhotoIDs.includes(photo.id) && !photos.some(item => item.id === photo.id)) photos.push(photo);
+                    }
+              
+                    return {
+                                notes: notes.filter(note => !deletedNoteIDs.includes(note.id)),
+                                spreadsheets: spreadsheets.filter(table => !deletedSpreadsheetIDs.includes(table.id)),
+                                agentConversation: agentConversation.filter(message => !deletedAgentMessageIDs.includes(message.id)),
+                                appShortcuts,
+                                photos,
+                                deletedNoteIDs,
+                                deletedSpreadsheetIDs,
+                                deletedAgentMessageIDs,
+                                deletedAppShortcutIDs,
+                                deletedPhotoIDs
+                    };
+          }
+      
+          async function loadPayload(user) {
+                    setStatus("sync-status", "Lade HomeHub-Daten …");
+                    const { data, error } = await client
+                                .from("homehub_sync")
+                                .select("payload")
+                                .eq("user_id", user.id)
+                                .maybeSingle();
+                    if (error) throw error;
+                              payload = data?.payload ?? emptyPayload();
+                    payload.notes ??= [];
+                    payload.spreadsheets ??= [];
+                    payload.agentConversation ??= [];
+                    payload.appShortcuts ??= [];
+                    payload.photos ??= [];
+                    payload.deletedNoteIDs ??= [];
+                    payload.deletedSpreadsheetIDs ??= [];
+                    payload.deletedAgentMessageIDs ??= [];
+                    payload.deletedAppShortcutIDs ??= [];
+                    payload.deletedPhotoIDs ??= [];
+                    payload.notes = payload.notes.filter(note => !payload.deletedNoteIDs.includes(note.id));
+                    payload.spreadsheets = payload.spreadsheets.filter(table => !payload.deletedSpreadsheetIDs.includes(table.id));
+                    payload.agentConversation = payload.agentConversation.filter(message => !payload.deletedAgentMessageIDs.includes(message.id));
+                    payload.appShortcuts = payload.appShortcuts.filter(item => !payload.deletedAppShortcutIDs.includes(item.id));
+                    payload.photos = payload.photos.filter(item => !payload.deletedPhotoIDs.includes(item.id));
+                    hasUnsavedChanges = false;
+                    render();
+                    setStatus("sync-status", "Synchronisiert");
+          }
+      
+          async function savePayload() {
+                    const { data: { user }, error: userError } = await client.auth.getUser();
+                    if (userError) throw userError;
+                              if (!user) throw new Error("Bitte melde dich erneut an.");
+                                        const { data: remote, error: loadError } = await client
+                                                    .from("homehub_sync")
+                                                    .select("payload")
+                                                    .eq("user_id", user.id)
+                                                    .maybeSingle();
+                    if (loadError) throw loadError;
+                              payload = mergePayloads(payload, remote?.payload ?? emptyPayload());
+                    const { error } = await client.from("homehub_sync").upsert({
+                                user_id: user.id,
+                                payload,
+                                updated_at: new Date().toISOString()
+                    }, { onConflict: "user_id" });
+                    if (error) throw error;
+                              hasUnsavedChanges = false;
+                    setStatus("sync-status", "Änderungen gespeichert");
+          }
+      
+          function scheduleSave() {
+                    hasUnsavedChanges = true;
+                    setStatus("sync-status", "Speichere …");
+                    clearTimeout(saveTimer);
+                    saveTimer = setTimeout(() => savePayload().catch(error => {
+                                setStatus("sync-status", error.message, true);
+                    }), 500);
+          }
+      
+          function renderNotes() {
+                    const list = byId("notes-list");
+                    if (!payload.notes.length) {
+                                list.innerHTML = '<p class="muted">Noch keine synchronisierten Notizen.</p>';
+                                return;
+                    }
+                              list.innerHTML = payload.notes.map(note => `
+                                      <article class="item stack">
+                                                <input aria-label="Notiztitel" data-note-title="${escapeHTML(note.id)}" value="${escapeHTML(note.title)}">
+                                                          <textarea aria-label="Notiztext" data-note-text="${escapeHTML(note.id)}">${escapeHTML(note.text)}</textarea>
+                                                                    <div class="row"><span class="muted">Wird automatisch gespeichert</span><button class="danger" data-delete-note="${escapeHTML(note.id)}">Löschen</button></div>
+                                                                            </article>`).join("");
+                    list.querySelectorAll("[data-note-title]").forEach(input => input.addEventListener("input", () => {
+                                const note = payload.notes.find(item => item.id === input.dataset.noteTitle);
+                                if (note) note.title = input.value;
+                                scheduleSave();
+                    }));
+                    list.querySelectorAll("[data-note-text]").forEach(input => input.addEventListener("input", () => {
+                                const note = payload.notes.find(item => item.id === input.dataset.noteText);
+                                if (note) note.text = input.value;
+                                scheduleSave();
+                    }));
+                    list.querySelectorAll("[data-delete-note]").forEach(button => button.addEventListener("click", () => {
+                                payload.deletedNoteIDs.push(button.dataset.deleteNote);
+                                payload.notes = payload.notes.filter(item => item.id !== button.dataset.deleteNote);
+                                renderNotes();
+                                scheduleSave();
+                    }));
+          }
+      
+          function renderTables() {
+                    const list = byId("tables-list");
+                    if (!payload.spreadsheets.length) {
+                                list.innerHTML = '<p class="muted">Noch keine synchronisierten Tabellen.</p>';
+                                return;
+                    }
+                              list.innerHTML = payload.spreadsheets.map(table => {
+                                          const cells = table.cells ?? [];
+                                          return `<article class="item stack">
+                                                    <input aria-label="Tabellentitel" data-table-title="${escapeHTML(table.id)}" value="${escapeHTML(table.title)}">
+                                                              <div class="cells">${cells.map((row, rowIndex) => `<div class="cellrow">${row.map((cell, columnIndex) =>
+                                                                              `<input aria-label="Zeile ${rowIndex + 1}, Spalte ${columnIndex + 1}" data-cell-table="${escapeHTML(table.id)}" data-row="${rowIndex}" data-column="${columnIndex}" value="${escapeHTML(cell)}">`
+                                                                            ).join("")}</div>`).join("")}</div>
+                                                                                      <div class="row"><button class="secondary" data-add-row="${escapeHTML(table.id)}">Zeile hinzufügen</button><button class="danger" data-delete-table="${escapeHTML(table.id)}">Löschen</button></div>
+                                                                                              </article>`;
+                              }).join("");
+                    list.querySelectorAll("[data-table-title]").forEach(input => input.addEventListener("input", () => {
+                                const table = payload.spreadsheets.find(item => item.id === input.dataset.tableTitle);
+                                if (table) table.title = input.value;
+                                scheduleSave();
+                    }));
+                    list.querySelectorAll("[data-cell-table]").forEach(input => input.addEventListener("input", () => {
+                                const table = payload.spreadsheets.find(item => item.id === input.dataset.cellTable);
+                                if (table) table.cells[Number(input.dataset.row)][Number(input.dataset.column)] = input.value;
+                                scheduleSave();
+                    }));
+                    list.querySelectorAll("[data-add-row]").forEach(button => button.addEventListener("click", () => {
+                                const table = payload.spreadsheets.find(item => item.id === button.dataset.addRow);
+                                if (table) table.cells.push(Array.from({ length: table.cells[0]?.length ?? 3 }, () => ""));
+                                renderTables();
+                                scheduleSave();
+                    }));
+                    list.querySelectorAll("[data-delete-table]").forEach(button => button.addEventListener("click", () => {
+                                payload.deletedSpreadsheetIDs.push(button.dataset.deleteTable);
+                                payload.spreadsheets = payload.spreadsheets.filter(item => item.id !== button.dataset.deleteTable);
+                                renderTables();
+                                scheduleSave();
+                    }));
+          }
+      
+          function renderChat() {
+                    const list = byId("chat-list");
+                    const messages = payload.agentConversation.slice(-100);
+                    list.innerHTML = messages.length ? messages.map(message => `
+                            <article class="item">
+                                      <strong>${message.role === "user" ? "Du" : "HomeHub-Agent"}</strong>
+                                                <p>${escapeHTML(message.content).replace(/\n/g, "<br>")}</p>
+                                                        </article>`).join("") : '<p class="muted">Noch kein synchronisierter Chatverlauf.</p>';
+          }
+      
+          function safeWebURL(value) {
+                    try {
+                                const url = new URL(value);
+                                return ["http:", "https:"].includes(url.protocol) ? url.href : null;
+                    } catch {
+                                return null;
+                    }
+          }
+      
+          function renderApps() {
+                    const list = byId("apps-list");
+                    list.innerHTML = payload.appShortcuts.length ? payload.appShortcuts.map(shortcut => {
+                                const url = safeWebURL(shortcut.url);
+                                return `<article class="shortcut-link row">
+                                          <div>${url
+                                                             ? `<a href="${escapeHTML(url)}" target="_blank" rel="noopener noreferrer">${escapeHTML(shortcut.name)}</a>`
+                                                             : `<span>${escapeHTML(shortcut.name)} · ungültige Webadresse</span>`}
+                                                                         <div class="muted">${escapeHTML(shortcut.url)}</div>
+                                                                                   </div>
+                                                                                             <button class="danger" data-delete-app="${escapeHTML(shortcut.id)}">Entfernen</button>
+                                                                                                     </article>`;
+                    }).join("") : '<p class="muted">Noch keine eigenen Apps hinzugefügt.</p>';
+                    list.querySelectorAll("[data-delete-app]").forEach(button => button.addEventListener("click", () => {
+                                const id = button.dataset.deleteApp;
+                                if (!window.confirm("Diese App-Verknüpfung wirklich entfernen?")) return;
+                                if (!payload.deletedAppShortcutIDs.includes(id)) payload.deletedAppShortcutIDs.push(id);
+                                payload.appShortcuts = payload.appShortcuts.filter(item => item.id !== id);
+                                renderApps();
+                                scheduleSave();
+                    }));
+          }
+      
+          function renderPhotos() {
+                    const list = byId("photos-list");
+                    list.innerHTML = payload.photos.length ? payload.photos.map(photo => `
+                            <article class="photo-card">
+                                      <img src="data:image/jpeg;base64,${photo.imageData}" alt="${escapeHTML(photo.name)}">
+                                                <p>${escapeHTML(photo.name)}</p>
+                                                          <button class="danger" data-delete-photo="${escapeHTML(photo.id)}">Entfernen</button>
+                                                                  </article>`).join("") : '<p class="muted">Noch keine Bilder hinzugefügt.</p>';
+                    list.querySelectorAll("[data-delete-photo]").forEach(button => button.addEventListener("click", () => {
+                                const id = button.dataset.deletePhoto;
+                                if (!window.confirm("Dieses Bild wirklich dauerhaft entfernen?")) return;
+                                if (!payload.deletedPhotoIDs.includes(id)) payload.deletedPhotoIDs.push(id);
+                                payload.photos = payload.photos.filter(item => item.id !== id);
+                                renderPhotos();
+                                scheduleSave();
+                    }));
+          }
+      
+          function render() {
+                    renderNotes();
+                    renderTables();
+                    renderChat();
+                    renderApps();
+                    renderPhotos();
+          }
+      
+          async function showSession(session) {
+                    const signedIn = Boolean(session);
+                    byId("auth").classList.toggle("hidden", signedIn);
+                    byId("app").classList.toggle("hidden", !signedIn);
+                    byId("signout").classList.toggle("hidden", !signedIn);
+                    if (session) {
+                                try {
+                                              await loadPayload(session.user);
+                                } catch (error) {
+                                              setStatus("sync-status", error.message, true);
+                                }
+                    }
+          }
+      
+          byId("login").addEventListener("click", async () => {
+                    setStatus("auth-status", "Melde an …");
+                    const { data, error } = await client.auth.signInWithPassword({
+                                email: byId("email").value.trim(),
+                                password: byId("password").value
+                    });
+                    if (error) return setStatus("auth-status", error.message, true);
+                    setStatus("auth-status", "");
+                    await showSession(data.session);
+          });
+      
+          byId("signup").addEventListener("click", async () => {
+                    setStatus("auth-status", "Erstelle Konto …");
+                    const { data, error } = await client.auth.signUp({
+                                email: byId("email").value.trim(),
+                                password: byId("password").value
+                    });
+                    if (error) return setStatus("auth-status", error.message, true);
+                    if (!data.session) {
+                                return setStatus("auth-status", "Konto erstellt. Melde dich jetzt mit deiner E-Mail-Adresse und deinem Passwort an.");
+                    }
+                    await showSession(data.session);
+          });
+      
+          byId("signout").addEventListener("click", async () => {
+                    const { error } = await client.auth.signOut();
+                    if (error) return setStatus("sync-status", error.message, true);
+                    payload = emptyPayload();
+                    await showSession(null);
+          });
+      
+          byId("sync").addEventListener("click", async () => {
+                    try {
+                                if (saveTimer) {
+                                              clearTimeout(saveTimer);
+                                              saveTimer = undefined;
+                                }
+                                            if (hasUnsavedChanges) await savePayload();
+                                                        const { data: { user } } = await client.auth.getUser();
+                                if (user) await loadPayload(user);
+                    } catch (error) {
+                                setStatus("sync-status", error.message, true);
+                    }
+          });
+      
+          byId("add-note").addEventListener("click", () => {
+                    payload.notes.unshift({ id: crypto.randomUUID(), title: "Neue Notiz", text: "" });
+                    renderNotes();
+                    scheduleSave();
+          });
+      
+          byId("add-table").addEventListener("click", () => {
+                    payload.spreadsheets.unshift({
+                                id: crypto.randomUUID(),
+                                title: "Neue Tabelle",
+                                cells: Array.from({ length: 5 }, () => Array.from({ length: 3 }, () => ""))
+                    });
+                    renderTables();
+                    scheduleSave();
+          });
+      
+          byId("add-app").addEventListener("click", () => {
+                    const name = byId("app-name").value.trim();
+                    const address = byId("app-url").value.trim();
+                    const url = safeWebURL(address);
+                    if (!name || !url) {
+                                return setStatus("apps-status", "Bitte gib einen Namen und eine gültige http- oder https-Webadresse ein.", true);
+                    }
+                    payload.appShortcuts.unshift({ id: crypto.randomUUID(), name, url, icon: "globe" });
+                    byId("app-name").value = "";
+                    byId("app-url").value = "";
+                    setStatus("apps-status", "App hinzugefügt.");
+                    renderApps();
+                    scheduleSave();
+          });
+      
+          byId("choose-photos").addEventListener("click", () => byId("photo-files").click());
+          byId("photo-files").addEventListener("change", async event => {
+                    const files = [...(event.target.files ?? [])];
+                    let addedCount = 0;
+                    let firstError;
+                    for (const file of files) {
+                                try {
+                                              if (!file.type.startsWith("image/")) throw new Error("Die Datei ist kein unterstütztes Bild.");
+                                                            const bitmap = await createImageBitmap(file);
+                                              const scale = Math.min(1, 1400 / Math.max(bitmap.width, bitmap.height));
+                                              const canvas = document.createElement("canvas");
+                                              canvas.width = Math.max(1, Math.round(bitmap.width * scale));
+                                              canvas.height = Math.max(1, Math.round(bitmap.height * scale));
+                                              canvas.getContext("2d").drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+                                              bitmap.close();
+                                              const imageData = await new Promise((resolve, reject) => {
+                                                              canvas.toBlob(blob => {
+                                                                                if (!blob) return reject(new Error("Das Bild konnte nicht komprimiert werden."));
+                                                                                const reader = new FileReader();
+                                                                                reader.onload = () => resolve(String(reader.result).split(",")[1]);
+                                                                                reader.onerror = () => reject(new Error("Das Bild konnte nicht gelesen werden."));
+                                                                                reader.readAsDataURL(blob);
+                                                              }, "image/jpeg", 0.72);
+                                              });
+                                              payload.photos.unshift({
+                                                              id: crypto.randomUUID(),
+                                                              name: file.name.replace(/\.[^.]+$/, "") || "Foto",
+                                                              imageData
+                                              });
+                                              addedCount++;
+                                } catch (error) {
+                                              firstError ??= error;
+                                }
+                    }
+                    event.target.value = "";
+                    renderPhotos();
+                    if (addedCount) scheduleSave();
+                    if (firstError) {
+                                setStatus("sync-status", `${addedCount ? `${addedCount} Bild(er) hinzugefügt. ` : ""}${firstError.message}`, true);
+                    }
+          });
+      
+          document.querySelectorAll("[data-tab]").forEach(button => button.addEventListener("click", () => {
+                    document.querySelectorAll("[data-tab]").forEach(tab => tab.setAttribute("aria-selected", String(tab === button)));
+                    for (const tab of ["notes", "tables", "chat", "apps", "photos"]) byId(`${tab}-panel`).classList.toggle("hidden", tab !== button.dataset.tab);
+          }));
+      
+          const { data: { session } } = await client.auth.getSession();
+          await showSession(session);
+          client.auth.onAuthStateChange((_event, nextSession) => {
+                    void showSession(nextSession);
+          });
+          setInterval(async () => {
+                    if (document.visibilityState !== "visible" || hasUnsavedChanges) return;
+                    if (document.activeElement?.matches("input, textarea")) return;
+                    const { data: { user }, error } = await client.auth.getUser();
+                    if (error || !user) return;
+                    try {
+                                await loadPayload(user);
+                    } catch (syncError) {
+                                setStatus("sync-status", syncError.message, true);
+                    }
+          }, 15000);
+      </script>
+    </body>
 </html>html></h1></h1>
-  </main></span></strong></div>
-    </header>
-</body></title>
-</head><!doctype html>
-<html lang="de">
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <meta name="theme-color" content="#111827">
-  <title>HomeHub</title>
-  <style>
-    :root {
-      color-scheme: light;
-      font: 16px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-      background: #f3f5f8;
-      color: #172033;
-      --accent: #2864dc;
-      --border: #dce2eb;
-      --muted: #647084;
-    }
-    * { box-sizing: border-box; }
-    body { margin: 0; min-height: 100vh; padding: env(safe-area-inset-top) 0 env(safe-area-inset-bottom); }
-    button, input, textarea { font: inherit; }
-    button { min-height: 42px; border: 0; border-radius: 10px; padding: 9px 14px; background: var(--accent); color: white; font-weight: 600; }
-    button.secondary { background: #e8edf5; color: #263248; }
-    button.danger { background: #fff0ef; color: #a6332a; }
-    input, textarea { width: 100%; border: 1px solid var(--border); border-radius: 9px; padding: 11px 12px; background: white; color: inherit; }
-    textarea { min-height: 110px; resize: vertical; }
-    header { position: sticky; top: 0; z-index: 2; display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 14px 18px; background: #111827; color: white; }
-    header strong { font-size: 19px; }
-    header span { display: block; margin-top: 2px; color: #bdc7d8; font-size: 12px; }
-    header button { background: #28364d; color: white; }
-    main { width: min(760px, 100%); margin: 0 auto; padding: 18px; }
-    .card { margin: 0 0 15px; padding: 16px; border: 1px solid var(--border); border-radius: 14px; background: white; box-shadow: 0 2px 8px #15233a0a; }
-    .stack { display: grid; gap: 11px; }
-    .row { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
-    .row.wrap { flex-wrap: wrap; }
-    .muted, .status { color: var(--muted); font-size: 13px; }
-    .error { color: #b42318; }
-    h1 { margin: 0 0 14px; font-size: 23px; }
-    h2 { margin: 0; font-size: 18px; }
-    h3 { margin: 0; font-size: 16px; }
-    .tabs { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 15px; }
-    .tabs button { background: #e8edf5; color: #263248; }
-    .tabs button[aria-selected="true"] { background: var(--accent); color: white; }
-    .item { padding: 13px 0; border-top: 1px solid var(--border); }
-    .item:first-child { border-top: 0; }
-    .cells { display: grid; gap: 7px; overflow-x: auto; }
-    .cellrow { display: flex; gap: 7px; min-width: max-content; }
-    .cellrow input { width: 145px; }
-    .hidden { display: none !important; }
-    @media (min-width: 600px) {
-      main { padding-top: 26px; }
-      .card { padding: 20px; }
-    }
-  </style>
-</head>
-<body>
-  <header>
-    <div><strong>HomeHub</strong><span>Private Notizen-Synchronisierung</span></div>
-    <button id="signout" class="hidden">Abmelden</button>
-  </header>
-  <main>
-    <section id="auth" class="card stack">
-      <h1>Bei HomeHub anmelden</h1>
-      <p class="muted">Melde dich mit deinem HomeHub-Konto an. Deine Daten werden nur in deinem Konto gespeichert.</p>
-      <label class="stack">E-Mail<input id="email" type="email" autocomplete="username" required></label>
-      <label class="stack">Passwort<input id="password" type="password" autocomplete="current-password" required></label>
-      <div class="row wrap">
-        <button id="login">Anmelden</button>
-        <button id="signup" class="secondary">Konto erstellen</button>
-      </div>
-      <p id="auth-status" class="status" role="status"></p>
-    </section>
-
-    <section id="app" class="hidden">
-      <div class="row wrap" style="margin-bottom:14px">
-        <h1>Dein HomeHub</h1>
-        <button id="sync" class="secondary">Jetzt synchronisieren</button>
-      </div>
-      <p id="sync-status" class="status" role="status"></p>
-      <nav class="tabs" aria-label="HomeHub-Bereiche">
-        <button data-tab="notes" aria-selected="true">Notizen</button>
-        <button data-tab="tables" aria-selected="false">Tabellen</button>
-        <button data-tab="chat" aria-selected="false">Chatverlauf</button>
-      </nav>
-      <section id="notes-panel" class="card stack">
-        <div class="row"><h2>Notizen</h2><button id="add-note">Neue Notiz</button></div>
-        <div id="notes-list"></div>
-      </section>
-      <section id="tables-panel" class="card stack hidden">
-        <div class="row"><h2>Tabellen</h2><button id="add-table">Neue Tabelle</button></div>
-        <div id="tables-list"></div>
-      </section>
-      <section id="chat-panel" class="card stack hidden">
-        <h2>Chatverlauf</h2>
-        <p class="muted">Der Verlauf wird angezeigt. Antworten über das Motorola-Modell sind nur möglich, wenn dein Mac und Handy zu Hause erreichbar sind.</p>
-        <div id="chat-list"></div>
-      </section>
-    </section>
-  </main>
-  <script type="module">
-    import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-
-    const SUPABASE_URL = "https://sjwwfwpbjqnmtihsafrj.supabase.co";
-    const SUPABASE_PUBLISHABLE_KEY = "sb_publishable_TsQELqZ8e9tAmu3hhzClkg_IZpbos7e";
-    const client = createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
-      auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true }
-    });
-    const emptyPayload = () => ({
-      notes: [],
-      spreadsheets: [],
-      agentConversation: [],
-      deletedNoteIDs: [],
-      deletedSpreadsheetIDs: [],
-      deletedAgentMessageIDs: []
-    });
-    let payload = emptyPayload();
-    let saveTimer;
-    let hasUnsavedChanges = false;
-
-    const byId = id => document.getElementById(id);
-    const setStatus = (id, message, error = false) => {
-      const element = byId(id);
-      element.textContent = message;
-      element.classList.toggle("error", error);
-    };
-    const escapeHTML = value => String(value ?? "").replace(/[&<>"']/g, char => ({
-      "&": "&amp;", "<": "&lt;", ">": "&gt;", "\"": "&quot;", "'": "&#39;"
-    })[char]);
-
-    function mergePayloads(localPayload, remotePayload) {
-      const local = { ...emptyPayload(), ...localPayload };
-      const remote = { ...emptyPayload(), ...remotePayload };
-      const deletedNoteIDs = [...new Set([...local.deletedNoteIDs, ...remote.deletedNoteIDs])];
-      const deletedSpreadsheetIDs = [...new Set([...local.deletedSpreadsheetIDs, ...remote.deletedSpreadsheetIDs])];
-      const deletedAgentMessageIDs = [...new Set([...local.deletedAgentMessageIDs, ...remote.deletedAgentMessageIDs])];
-      const notes = local.notes.filter(note => !deletedNoteIDs.includes(note.id));
-      for (const note of remote.notes) {
-        if (deletedNoteIDs.includes(note.id)) continue;
-        const existing = notes.find(item => item.id === note.id);
-        if (!existing) {
-          notes.push(note);
-        } else if (existing.title !== note.title || existing.text !== note.text) {
-          const copyExists = notes.some(item =>
-            item.id !== note.id && item.title === `${note.title} (Cloud-Kopie)` && item.text === note.text
-          );
-          if (!copyExists) notes.push({ ...note, id: crypto.randomUUID(), title: `${note.title} (Cloud-Kopie)` });
-        }
-      }
-
-      const spreadsheets = local.spreadsheets.filter(table => !deletedSpreadsheetIDs.includes(table.id));
-      for (const table of remote.spreadsheets) {
-        if (deletedSpreadsheetIDs.includes(table.id)) continue;
-        const existing = spreadsheets.find(item => item.id === table.id);
-        if (!existing) {
-          spreadsheets.push(table);
-        } else if (JSON.stringify(existing) !== JSON.stringify(table)) {
-          const copyExists = spreadsheets.some(item =>
-            item.id !== table.id && item.title === `${table.title} (Cloud-Kopie)` &&
-            JSON.stringify(item.cells) === JSON.stringify(table.cells)
-          );
-          if (!copyExists) spreadsheets.push({ ...table, id: crypto.randomUUID(), title: `${table.title} (Cloud-Kopie)` });
-        }
-      }
-
-      const agentConversation = [...local.agentConversation];
-      for (const message of remote.agentConversation) {
-        const existing = agentConversation.find(item => item.id === message.id);
-        if (!existing) {
-          agentConversation.push(message);
-        } else if (existing.role !== message.role || existing.content !== message.content) {
-          agentConversation.push({ ...message, id: crypto.randomUUID() });
-        }
-      }
-      agentConversation.sort((left, right) =>
-        new Date(left.createdAt ?? 0).getTime() - new Date(right.createdAt ?? 0).getTime()
-      );
-
-      return {
-        notes: notes.filter(note => !deletedNoteIDs.includes(note.id)),
-        spreadsheets: spreadsheets.filter(table => !deletedSpreadsheetIDs.includes(table.id)),
-        agentConversation: agentConversation.filter(message => !deletedAgentMessageIDs.includes(message.id)),
-        deletedNoteIDs,
-        deletedSpreadsheetIDs,
-        deletedAgentMessageIDs
-      };
-    }
-
-    async function loadPayload(user) {
-      setStatus("sync-status", "Lade HomeHub-Daten …");
-      const { data, error } = await client
-        .from("homehub_sync")
-        .select("payload")
-        .eq("user_id", user.id)
-        .maybeSingle();
-      if (error) throw error;
-      payload = data?.payload ?? emptyPayload();
-      payload.notes ??= [];
-      payload.spreadsheets ??= [];
-      payload.agentConversation ??= [];
-      payload.deletedNoteIDs ??= [];
-      payload.deletedSpreadsheetIDs ??= [];
-      payload.deletedAgentMessageIDs ??= [];
-      payload.notes = payload.notes.filter(note => !payload.deletedNoteIDs.includes(note.id));
-      payload.spreadsheets = payload.spreadsheets.filter(table => !payload.deletedSpreadsheetIDs.includes(table.id));
-      payload.agentConversation = payload.agentConversation.filter(message => !payload.deletedAgentMessageIDs.includes(message.id));
-      hasUnsavedChanges = false;
-      render();
-      setStatus("sync-status", "Synchronisiert");
-    }
-
-    async function savePayload() {
-      const { data: { user }, error: userError } = await client.auth.getUser();
-      if (userError) throw userError;
-      if (!user) throw new Error("Bitte melde dich erneut an.");
-      const { data: remote, error: loadError } = await client
-        .from("homehub_sync")
-        .select("payload")
-        .eq("user_id", user.id)
-        .maybeSingle();
-      if (loadError) throw loadError;
-      payload = mergePayloads(payload, remote?.payload ?? emptyPayload());
-      const { error } = await client.from("homehub_sync").upsert({
-        user_id: user.id,
-        payload,
-        updated_at: new Date().toISOString()
-      }, { onConflict: "user_id" });
-      if (error) throw error;
-      hasUnsavedChanges = false;
-      setStatus("sync-status", "Änderungen gespeichert");
-    }
-
-    function scheduleSave() {
-      hasUnsavedChanges = true;
-      setStatus("sync-status", "Speichere …");
-      clearTimeout(saveTimer);
-      saveTimer = setTimeout(() => savePayload().catch(error => {
-        setStatus("sync-status", error.message, true);
-      }), 500);
-    }
-
-    function renderNotes() {
-      const list = byId("notes-list");
-      if (!payload.notes.length) {
-        list.innerHTML = '<p class="muted">Noch keine synchronisierten Notizen.</p>';
-        return;
-      }
-      list.innerHTML = payload.notes.map(note => `
-        <article class="item stack">
-          <input aria-label="Notiztitel" data-note-title="${escapeHTML(note.id)}" value="${escapeHTML(note.title)}">
-          <textarea aria-label="Notiztext" data-note-text="${escapeHTML(note.id)}">${escapeHTML(note.text)}</textarea>
-          <div class="row"><span class="muted">Wird automatisch gespeichert</span><button class="danger" data-delete-note="${escapeHTML(note.id)}">Löschen</button></div>
-        </article>`).join("");
-      list.querySelectorAll("[data-note-title]").forEach(input => input.addEventListener("input", () => {
-        const note = payload.notes.find(item => item.id === input.dataset.noteTitle);
-        if (note) note.title = input.value;
-        scheduleSave();
-      }));
-      list.querySelectorAll("[data-note-text]").forEach(input => input.addEventListener("input", () => {
-        const note = payload.notes.find(item => item.id === input.dataset.noteText);
-        if (note) note.text = input.value;
-        scheduleSave();
-      }));
-      list.querySelectorAll("[data-delete-note]").forEach(button => button.addEventListener("click", () => {
-        payload.deletedNoteIDs.push(button.dataset.deleteNote);
-        payload.notes = payload.notes.filter(item => item.id !== button.dataset.deleteNote);
-        renderNotes();
-        scheduleSave();
-      }));
-    }
-
-    function renderTables() {
-      const list = byId("tables-list");
-      if (!payload.spreadsheets.length) {
-        list.innerHTML = '<p class="muted">Noch keine synchronisierten Tabellen.</p>';
-        return;
-      }
-      list.innerHTML = payload.spreadsheets.map(table => {
-        const cells = table.cells ?? [];
-        return `<article class="item stack">
-          <input aria-label="Tabellentitel" data-table-title="${escapeHTML(table.id)}" value="${escapeHTML(table.title)}">
-          <div class="cells">${cells.map((row, rowIndex) => `<div class="cellrow">${row.map((cell, columnIndex) =>
-            `<input aria-label="Zeile ${rowIndex + 1}, Spalte ${columnIndex + 1}" data-cell-table="${escapeHTML(table.id)}" data-row="${rowIndex}" data-column="${columnIndex}" value="${escapeHTML(cell)}">`
-          ).join("")}</div>`).join("")}</div>
-          <div class="row"><button class="secondary" data-add-row="${escapeHTML(table.id)}">Zeile hinzufügen</button><button class="danger" data-delete-table="${escapeHTML(table.id)}">Löschen</button></div>
-        </article>`;
-      }).join("");
-      list.querySelectorAll("[data-table-title]").forEach(input => input.addEventListener("input", () => {
-        const table = payload.spreadsheets.find(item => item.id === input.dataset.tableTitle);
-        if (table) table.title = input.value;
-        scheduleSave();
-      }));
-      list.querySelectorAll("[data-cell-table]").forEach(input => input.addEventListener("input", () => {
-        const table = payload.spreadsheets.find(item => item.id === input.dataset.cellTable);
-        if (table) table.cells[Number(input.dataset.row)][Number(input.dataset.column)] = input.value;
-        scheduleSave();
-      }));
-      list.querySelectorAll("[data-add-row]").forEach(button => button.addEventListener("click", () => {
-        const table = payload.spreadsheets.find(item => item.id === button.dataset.addRow);
-        if (table) table.cells.push(Array.from({ length: table.cells[0]?.length ?? 3 }, () => ""));
-        renderTables();
-        scheduleSave();
-      }));
-      list.querySelectorAll("[data-delete-table]").forEach(button => button.addEventListener("click", () => {
-        payload.deletedSpreadsheetIDs.push(button.dataset.deleteTable);
-        payload.spreadsheets = payload.spreadsheets.filter(item => item.id !== button.dataset.deleteTable);
-        renderTables();
-        scheduleSave();
-      }));
-    }
-
-    function renderChat() {
-      const list = byId("chat-list");
-      const messages = payload.agentConversation.slice(-100);
-      list.innerHTML = messages.length ? messages.map(message => `
-        <article class="item">
-          <strong>${message.role === "user" ? "Du" : "HomeHub-Agent"}</strong>
-          <p>${escapeHTML(message.content).replace(/\n/g, "<br>")}</p>
-        </article>`).join("") : '<p class="muted">Noch kein synchronisierter Chatverlauf.</p>';
-    }
-
-    function render() {
-      renderNotes();
-      renderTables();
-      renderChat();
-    }
-
-    async function showSession(session) {
-      const signedIn = Boolean(session);
-      byId("auth").classList.toggle("hidden", signedIn);
-      byId("app").classList.toggle("hidden", !signedIn);
-      byId("signout").classList.toggle("hidden", !signedIn);
-      if (session) {
-        try {
-          await loadPayload(session.user);
-        } catch (error) {
-          setStatus("sync-status", error.message, true);
-        }
-      }
-    }
-
-    byId("login").addEventListener("click", async () => {
-      setStatus("auth-status", "Melde an …");
-      const { data, error } = await client.auth.signInWithPassword({
-        email: byId("email").value.trim(),
-        password: byId("password").value
-      });
-      if (error) return setStatus("auth-status", error.message, true);
-      setStatus("auth-status", "");
-      await showSession(data.session);
-    });
-
-    byId("signup").addEventListener("click", async () => {
-      setStatus("auth-status", "Erstelle Konto …");
-      const { data, error } = await client.auth.signUp({
-        email: byId("email").value.trim(),
-        password: byId("password").value
-      });
-      if (error) return setStatus("auth-status", error.message, true);
-      if (!data.session) {
-        return setStatus("auth-status", "Konto erstellt. Melde dich jetzt mit deiner E-Mail-Adresse und deinem Passwort an.");
-      }
-      await showSession(data.session);
-    });
-
-    byId("signout").addEventListener("click", async () => {
-      const { error } = await client.auth.signOut();
-      if (error) return setStatus("sync-status", error.message, true);
-      payload = emptyPayload();
-      await showSession(null);
-    });
-
-    byId("sync").addEventListener("click", async () => {
-      try {
-        if (saveTimer) {
-          clearTimeout(saveTimer);
-          saveTimer = undefined;
-        }
-        if (hasUnsavedChanges) await savePayload();
-        const { data: { user } } = await client.auth.getUser();
-        if (user) await loadPayload(user);
-      } catch (error) {
-        setStatus("sync-status", error.message, true);
-      }
-    });
-
-    byId("add-note").addEventListener("click", () => {
-      payload.notes.unshift({ id: crypto.randomUUID(), title: "Neue Notiz", text: "" });
-      renderNotes();
-      scheduleSave();
-    });
-
-    byId("add-table").addEventListener("click", () => {
-      payload.spreadsheets.unshift({
-        id: crypto.randomUUID(),
-        title: "Neue Tabelle",
-        cells: Array.from({ length: 5 }, () => Array.from({ length: 3 }, () => ""))
-      });
-      renderTables();
-      scheduleSave();
-    });
-
-    document.querySelectorAll("[data-tab]").forEach(button => button.addEventListener("click", () => {
-      document.querySelectorAll("[data-tab]").forEach(tab => tab.setAttribute("aria-selected", String(tab === button)));
-      for (const tab of ["notes", "tables", "chat"]) byId(`${tab}-panel`).classList.toggle("hidden", tab !== button.dataset.tab);
-    }));
-
-    const { data: { session } } = await client.auth.getSession();
-    await showSession(session);
-    client.auth.onAuthStateChange((_event, nextSession) => {
-      void showSession(nextSession);
-    });
-    setInterval(async () => {
-      if (document.visibilityState !== "visible" || hasUnsavedChanges) return;
-      if (document.activeElement?.matches("input, textarea")) return;
-      const { data: { user }, error } = await client.auth.getUser();
-      if (error || !user) return;
-      try {
-        await loadPayload(user);
-      } catch (syncError) {
-        setStatus("sync-status", syncError.message, true);
-      }
-    }, 15000);
-  </script>
-</body>
-</html>
+      </main></span></strong></div>
+          </header>
+    </body>
+      </style></title>
+    </head>
